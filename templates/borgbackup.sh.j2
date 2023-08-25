@@ -1,0 +1,75 @@
+#!/bin/bash
+# This script requires jq.  Bail if not found.  You can download a static binary from the jq homepage.
+if ! command -v ./jq &> /dev/null
+then
+    echo "jq could not be found. Please install and try again"
+    exit
+fi
+#mysqldump - assumes you have a .my.cnf file in place
+# Not necessary on May First - "backups" folder is a sibling of "web".
+{% if nosudo_backup_dbs is defined %}
+{% for db in nosudo_backup_dbs %}
+mysqldump {{ db }} | gzip --rsyncable > {{ sqldumps_path }}/{{ db }}.sql.gz
+{% endfor %}
+{% endif %}
+
+# borg backupninja backup script
+REPOSITORY="{{ rsyncnet_user }}@{{ rsyncnet_server }}:{{ client }}-{{ hostname }}"
+export BORG_PASSPHRASE='{{ lookup('passwordstore', client + '/' + hostname + '/borg/remote') }}'
+# On rsync.net: Specify /usr/local/bin/borg/borg for borg 0.29; /usr/local/bin/borg1 for 1.x
+REMOTE_PATH=/usr/local/bin/borg1/borg1
+
+ICINGA2_API_USER=backupninja
+ICINGA2_SERVER_ADDRESS=icinga-api.megaphonetech.com
+ICINGA2_API_PORT=443
+ICINGA2_API_PASSWORD="{{ lookup('passwordstore', 'megaphone/icinga2/api') }}"
+ICINGA2_HOSTNAME={{ fqdn }}
+# Set level to 0, "OK", and we'll change it if anything goes wrong.
+LEVEL=0
+# Run the backup.
+OUTPUT=$( (
+{{ ansible_env.HOME }}/bin/borg create --warning --filter=AME --stats --compression lz4         \
+--remote-path $REMOTE_PATH \
+$REPOSITORY::'{hostname}-{now:%Y-%m-%d}' \
+{% for dir in nosudo_backup_dirs %}
+{{ dir }} \
+{% endfor %}
+--exclude '*/templates_c' \
+--exclude '*/Maildir' \
+--exclude '.config/borg' \
+--exclude '*/civicrm/upload/cache' \
+) 2>&1)
+if [ $? -ne 0 ]
+then
+  LEVEL=2
+fi
+# Remove old backups.
+OUTPUT=${OUTPUT}\\n$( (
+{{ ansible_env.HOME }}/bin/borg prune -v $REPOSITORY --prefix '{hostname}-' --keep-daily=15 --keep-weekly=9 --keep-monthly=6 --remote-path $REMOTE_PATH
+) 2>&1)
+if [ $? -ne 0 ]
+  then
+  LEVEL=2
+fi
+
+# Check the integrity of the backup.
+OUTPUT=${OUTPUT}\\n$( (
+{{ ansible_env.HOME }}/bin/borg check $REPOSITORY --remote-path $REMOTE_PATH
+) 2>&1)
+if [ $? -ne 0 ]
+  then
+  LEVEL=2
+fi
+unset BORG_PASSPHRASE
+# Escape JSON characters
+echo $OUTPUT
+OUTPUT=$( echo $OUTPUT | ./jq --raw-input --slurp --ascii-output . )
+echo "after jq"
+echo $OUTPUT
+# Send to Icinga
+DATA="{ \"exit_status\": $LEVEL, \"plugin_output\": ${OUTPUT} }"
+/usr/bin/curl -k -s -u $ICINGA2_API_USER:$ICINGA2_API_PASSWORD -H 'Accept: application/json' -X POST "https://$ICINGA2_SERVER_ADDRESS:$ICINGA2_API_PORT/v1/actions/process-check-result?service=${ICINGA2_HOSTNAME}!backupninja" --data "${DATA}" > /dev/null
+# Reschedule the next dummy backupninja check
+RESCHEDULE_TIME=$(/bin/date -d "tomorrow 6am" "+%s")
+RESCHEDULE_JSON="{ \"next_check\": \"${RESCHEDULE_TIME}\" }"
+/usr/bin/curl -k -s -u $ICINGA2_API_USER:$ICINGA2_API_PASSWORD -H 'Accept: application/json' -X POST "https://$ICINGA2_SERVER_ADDRESS:$ICINGA2_API_PORT/v1/actions/reschedule-check?service=${ICINGA2_HOSTNAME}!backupninja" --data "${RESCHEDULE_JSON}" > /dev/null

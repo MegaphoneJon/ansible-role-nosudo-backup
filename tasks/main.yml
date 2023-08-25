@@ -1,0 +1,38 @@
+# Still need to support multiple users on a server
+- name: get the ansible_env on nosudo to find the user's home dir
+  setup:
+    filter: ansible_env
+
+- name: Create a bin directory
+  ansible.builtin.file:
+    path: "{{ ansible_env.HOME }}/bin"
+
+# This installs the "old" version. Current version requires libc 2.28.
+- name: Install borg
+  ansible.builtin.copy:
+    src: files/borg-linuxold64
+    dest: "{{ ansible_env.HOME }}/bin/borg"
+    mode: ugo+x
+
+- name: Install jq
+  ansible.builtin.copy:
+    src: files/jq
+    dest: "{{ ansible_env.HOME }}/bin/jq"
+    mode: ugo+x
+
+- name: Set .my.cnf
+  template:
+    src: templates/my.cnf.j2
+    dest: "{{ ansible_env.HOME }}/.my.cnf"
+
+- name: Install borgbackup.sh
+  template:
+    src: templates/borgbackup.sh.j2
+    dest: "{{ ansible_env.HOME }}/bin/borgbackup.sh"
+    mode: ugo+x
+
+- name: Configure backup cron
+  cron:
+    hour: "2"
+    name: "Megaphonetech offsite backup"
+    job: "cd {{ ansible_env.HOME }}/bin && {{ ansible_env.HOME }}/bin/borgbackup.sh"
