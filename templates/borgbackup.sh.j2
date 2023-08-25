@@ -45,7 +45,7 @@ then
 fi
 # Remove old backups.
 OUTPUT=${OUTPUT}\\n$( (
-{{ ansible_env.HOME }}/bin/borg prune -v $REPOSITORY --prefix '{hostname}-' --keep-daily=15 --keep-weekly=9 --keep-monthly=6 --remote-path $REMOTE_PATH
+{{ ansible_env.HOME }}/bin/borg prune -v $REPOSITORY --glob-archives '{hostname}-*' --keep-daily=15 --keep-weekly=9 --keep-monthly=6 --remote-path $REMOTE_PATH
 ) 2>&1)
 if [ $? -ne 0 ]
   then
