@@ -9,7 +9,7 @@ fi
 # Not necessary on May First - "backups" folder is a sibling of "web".
 {% if nosudo_backup_dbs is defined %}
 {% for db in nosudo_backup_dbs %}
-mysqldump {{ db }} | gzip --rsyncable > {{ sqldumps_path }}/{{ db }}.sql.gz
+mysqldump --single-transaction=TRUE {{ db }} | gzip --rsyncable > {{ sqldumps_path }}/{{ db }}.sql.gz
 {% endfor %}
 {% endif %}
 
