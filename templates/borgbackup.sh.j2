@@ -13,6 +13,12 @@ mysqldump --single-transaction=TRUE {{ db }} | gzip --rsyncable > {{ sqldumps_pa
 {% endfor %}
 {% endif %}
 
+{% if nosudo_backup_structure_only_dbs is defined %}
+{% for db in nosudo_backup_structure_only_dbs %}
+mysqldump --single-transaction=TRUE --no-data {{ db }} | gzip --rsyncable > {{ sqldumps_path }}/{{ db }}.sql.gz
+{% endfor %}
+{% endif %}
+
 # borg backupninja backup script
 REPOSITORY="{{ rsyncnet_user }}@{{ rsyncnet_server }}:{{ client }}-{{ hostname }}"
 export BORG_PASSPHRASE='{{ lookup('passwordstore', client + '/' + hostname + '/borg/remote') }}'
