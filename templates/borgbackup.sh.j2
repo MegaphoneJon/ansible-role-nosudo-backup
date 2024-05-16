@@ -15,7 +15,7 @@ mysqldump --single-transaction=TRUE --routines {{ db }} | gzip --rsyncable > {{ 
 
 {% if nosudo_backup_structure_only_dbs is defined %}
 {% for db in nosudo_backup_structure_only_dbs %}
-mysqldump --single-transaction=TRUE --no-data {{ db }} | gzip --rsyncable > {{ sqldumps_path }}/{{ db }}.sql.gz
+mysqldump --single-transaction=TRUE --no-data {{ db }} | gzip --rsyncable > {{ sqldumps_path }}/{{ db }}_structure.sql.gz
 {% endfor %}
 {% endif %}
 
