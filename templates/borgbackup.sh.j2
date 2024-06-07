@@ -6,7 +6,7 @@ then
     exit
 fi
 #mysqldump - assumes you have a .my.cnf file in place
-# Not necessary on May First - "backups" folder is a sibling of "web".
+# Not necessary on May First old infrastructure - "backups" folder is a sibling of "web".
 {% if nosudo_backup_dbs is defined %}
 {% for db in nosudo_backup_dbs %}
 mysqldump --single-transaction=TRUE --routines {{ db }} | gzip --rsyncable > {{ sqldumps_path }}/{{ db }}.sql.gz
@@ -19,8 +19,12 @@ mysqldump --single-transaction=TRUE --no-data {{ db }} | gzip --rsyncable > {{ s
 {% endfor %}
 {% endif %}
 
+{% if ssh_key_location is defined %}
+export BORG_RSH='ssh -o UserKnownHostsFile={{ ssh_key_location + '/known_hosts' }} -i {{ ssh_key_location + '/id_ed25519' }}'
+{% endif %}
+
 # borg backupninja backup script
-REPOSITORY="{{ rsyncnet_user }}@{{ rsyncnet_server }}:{{ client }}-{{ hostname }}"
+REPOSITORY="{{ rsyncnet_user }}@{{ rsyncnet_server }}:{{ client }}-{{ hostname }}-{{ bare_url }}"
 export BORG_PASSPHRASE='{{ lookup('community.general.passwordstore', client + '/' + hostname + '/borg/remote') }}'
 # On rsync.net: Specify /usr/local/bin/borg/borg for borg 0.29; /usr/local/bin/borg1 for 1.x
 REMOTE_PATH=/usr/local/bin/borg1/borg1
@@ -29,7 +33,7 @@ ICINGA2_API_USER=backupninja
 ICINGA2_SERVER_ADDRESS=icinga-api.megaphonetech.com
 ICINGA2_API_PORT=443
 ICINGA2_API_PASSWORD="{{ lookup('community.general.passwordstore', 'megaphone/icinga2/api') }}"
-ICINGA2_HOSTNAME={{ fqdn }}
+ICINGA2_HOSTNAME={{ server }}
 # Set level to 0, "OK", and we'll change it if anything goes wrong.
 LEVEL=0
 # Run the backup.

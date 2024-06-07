@@ -24,6 +24,8 @@
   template:
     src: templates/my.cnf.j2
     dest: "{{ ansible_env.HOME }}/.my.cnf"
+    # Necessary to write to Mayfirst home dir.
+    unsafe_writes: true
 
 - name: Install borgbackup.sh
   template:
