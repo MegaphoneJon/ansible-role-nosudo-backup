@@ -26,6 +26,7 @@ export BORG_RSH='ssh -o UserKnownHostsFile={{ ssh_key_location + '/known_hosts' 
 # borg backupninja backup script
 REPOSITORY="{{ rsyncnet_user }}@{{ rsyncnet_server }}:{{ client }}-{{ hostname }}-{{ bare_url }}"
 export BORG_PASSPHRASE='{{ lookup('community.general.passwordstore', client + '/' + hostname + '/borg/remote') }}'
+export BORG_RELOCATED_REPO_ACCESS_IS_OK=yes
 # On rsync.net: Specify /usr/local/bin/borg/borg for borg 0.29; /usr/local/bin/borg1 for 1.x
 REMOTE_PATH=/usr/local/bin/borg1/borg1
 
@@ -44,11 +45,30 @@ $REPOSITORY::'{hostname}-{now:%Y-%m-%d}' \
 {% for dir in nosudo_backup_dirs %}
 {{ dir }} \
 {% endfor %}
---exclude '*/templates_c' \
---exclude '*/Maildir' \
---exclude '*/.config/borg' \
---exclude '*/civicrm/upload/cache' \
-) 2>&1)
+--exclude '**/templates_c' \
+--exclude '**/tmp/' \
+--exclude '**/temp/' \
+--exclude '/home/*/.steam/steam/steamapps/common/' \
+--exclude '/home/**/.cache' \
+--exclude '/root/.cache' \
+--exclude '/home/**/.mozilla/firefox/*/Cache' \
+--exclude '/home/**/.thunderbird/*/global-messages-db.sqlite' \
+--exclude '**/borg' \
+--exclude '/var/cache' \
+--exclude '/var/lib' \
+--exclude '/home/*/.composer/cache' \
+--exclude '/home/*/.config/Code/*/bmewburn.vscode-intelephense-client' \
+--exclude '/home/*/.config/google-chrome' \
+--exclude '/home/*/.config/Nextcloud/logs' \
+--exclude '/home/*/Games' \
+--exclude '/home/*/.vscode-server' \
+--exclude '/home/*/drush-backups' \
+--exclude '**/civicrm/persist/contribute/dyn/' \
+--exclude '**/sites/default/files/css/' \
+--exclude '**/sites/default/files/ctools/css/' \
+--exclude '**/sites/default/files/php/twig/' \
+--exclude '**/sites/default/files/js/'
+) 2>&1 | tee {{ nosudo_logs_path }}/borg.log)
 
 if [ $? -ne 0 ]
 then
@@ -70,7 +90,7 @@ fi
 # Remove old backups.
 OUTPUT=${OUTPUT}\\n$( (
 {{ ansible_env.HOME }}/bin/borg prune -v $REPOSITORY --glob-archives '{hostname}-*' --keep-daily=15 --keep-weekly=9 --keep-monthly=6 --remote-path $REMOTE_PATH
-) 2>&1)
+) 2>&1 | tee --append {{ nosudo_logs_path }}/borg.log)
 if [ $? -ne 0 ]
   then
   LEVEL=2
@@ -79,7 +99,7 @@ fi
 # Check the integrity of the backup.
 OUTPUT=${OUTPUT}\\n$( (
 {{ ansible_env.HOME }}/bin/borg check $REPOSITORY --remote-path $REMOTE_PATH
-) 2>&1)
+) 2>&1 | tee --append {{ nosudo_logs_path }}/borg.log)
 if [ $? -ne 0 ]
   then
   LEVEL=2
@@ -92,8 +112,8 @@ echo "after jq"
 echo $OUTPUT
 # Send to Icinga
 DATA="{ \"exit_status\": $LEVEL, \"plugin_output\": ${OUTPUT} }"
-/usr/bin/curl -k -s -u $ICINGA2_API_USER:$ICINGA2_API_PASSWORD -H 'Accept: application/json' -X POST "https://$ICINGA2_SERVER_ADDRESS:$ICINGA2_API_PORT/v1/actions/process-check-result?service=${ICINGA2_HOSTNAME}!backupninja" --data "${DATA}" > /dev/null
+/usr/bin/curl -k -s -u $ICINGA2_API_USER:$ICINGA2_API_PASSWORD -H 'Accept: application/json' -X POST "https://$ICINGA2_SERVER_ADDRESS:$ICINGA2_API_PORT/v1/actions/process-check-result?service=${ICINGA2_HOSTNAME}!backupninja-site-{{ bare_url }}" --data "${DATA}" > /dev/null
 # Reschedule the next dummy backupninja check
 RESCHEDULE_TIME=$(/bin/date -d "tomorrow 6am" "+%s")
 RESCHEDULE_JSON="{ \"next_check\": \"${RESCHEDULE_TIME}\" }"
-/usr/bin/curl -k -s -u $ICINGA2_API_USER:$ICINGA2_API_PASSWORD -H 'Accept: application/json' -X POST "https://$ICINGA2_SERVER_ADDRESS:$ICINGA2_API_PORT/v1/actions/reschedule-check?service=${ICINGA2_HOSTNAME}!backupninja" --data "${RESCHEDULE_JSON}" > /dev/null
+/usr/bin/curl -k -s -u $ICINGA2_API_USER:$ICINGA2_API_PASSWORD -H 'Accept: application/json' -X POST "https://$ICINGA2_SERVER_ADDRESS:$ICINGA2_API_PORT/v1/actions/reschedule-check?service=${ICINGA2_HOSTNAME}!backupninja-site-{{ bare_url }}" --data "${RESCHEDULE_JSON}" > /dev/null
