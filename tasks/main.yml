@@ -39,3 +39,15 @@
     hour: "2"
     name: "Megaphonetech offsite backup"
     job: "cd {{ ansible_env.HOME }}/bin && {{ ansible_env.HOME }}/bin/borgbackup.sh"
+
+- name: Create the .ssh directory
+  file:
+    path: "{{ ssh_key_location | default(ansible_env.HOME + '/.ssh', true) }}"
+    state: directory
+  become_user: "{{ run_as_user }}"
+
+- name: Create the log directory
+  file:
+    path: "{{ nosudo_logs_path | default(ansible_env.HOME + '/log', true) }}"
+    state: directory
+  become_user: "{{ run_as_user }}"
