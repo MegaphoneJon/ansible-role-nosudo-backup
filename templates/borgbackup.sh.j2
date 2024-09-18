@@ -25,7 +25,7 @@ export BORG_RSH='ssh -o UserKnownHostsFile={{ ssh_key_location + '/known_hosts' 
 
 # borg backupninja backup script
 REPOSITORY="{{ rsyncnet_user }}@{{ rsyncnet_server }}:{{ client }}-{{ hostname }}-{{ bare_url }}"
-export BORG_PASSPHRASE='{{ lookup('community.general.passwordstore', client + '/' + hostname + '/borg/remote') }}'
+export BORG_PASSPHRASE='{{ lookup('community.general.passwordstore', client + '/' + hostname + '/' + bare_url + '/borg/remote') }}'
 export BORG_RELOCATED_REPO_ACCESS_IS_OK=yes
 # On rsync.net: Specify /usr/local/bin/borg/borg for borg 0.29; /usr/local/bin/borg1 for 1.x
 REMOTE_PATH=/usr/local/bin/borg1/borg1
