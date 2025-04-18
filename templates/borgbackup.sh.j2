@@ -70,8 +70,8 @@ export BORG_RSH='ssh -o UserKnownHostsFile={{ ssh_key_location + '/known_hosts' 
 REPOSITORY="{{ rsyncnet_user }}@{{ rsyncnet_server }}:{{ client }}-{{ hostname }}-{{ bare_url }}"
 export BORG_PASSPHRASE='{{ lookup('community.general.passwordstore', client + '/' + hostname + '/' + bare_url + '/borg/remote') }}'
 export BORG_RELOCATED_REPO_ACCESS_IS_OK=yes
-# On rsync.net: Specify /usr/local/bin/borg/borg for borg 0.29; /usr/local/bin/borg1 for 1.x
-REMOTE_PATH=/usr/local/bin/borg1/borg1
+# On rsync.net: Specify borg12 for borg 1.2, borg14 for borg 1.4
+REMOTE_PATH=borg12
 
 ICINGA2_API_USER=backupninja
 ICINGA2_SERVER_ADDRESS=icinga-api.megaphonetech.com
