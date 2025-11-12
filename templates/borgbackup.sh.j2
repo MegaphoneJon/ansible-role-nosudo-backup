@@ -163,14 +163,19 @@ if [ $? -ne 0 ]
 fi
 printf "%s\n" "$OUTPUT" >> {{ nosudo_logs_path }}/borg.log
 
-# Check the integrity of the backup.
-OUTPUT=${OUTPUT}\\n$( (
-{{ ansible_env.HOME }}/bin/borg check $REPOSITORY --remote-path $REMOTE_PATH
-) 2>&1)
-if [ $? -ne 0 ]
-  then
-  LEVEL=2
+# Check the integrity of the backup on Sundays.
+DOW=$(date +'%A')
+if [[ $DOW == 'Sunday' ]]
+then
+  OUTPUT=${OUTPUT}\\n$( (
+  {{ ansible_env.HOME }}/bin/borg check $REPOSITORY --remote-path $REMOTE_PATH
+  ) 2>&1)
+  if [ $? -ne 0 ]
+    then
+    LEVEL=2
+  fi
 fi
+
 printf "%s\n" "$OUTPUT" >> {{ nosudo_logs_path }}/borg.log
 unset BORG_PASSPHRASE
 # Escape JSON characters
