@@ -5,32 +5,32 @@
 
 - name: Create a bin directory
   ansible.builtin.file:
-    path: "{{ ansible_env.HOME }}/bin"
+    path: "{{ ansible_facts.env.HOME }}/bin"
 
 # This installs the "old" version. Current version requires libc 2.28.
 - name: Install borg
   ansible.builtin.copy:
     src: files/borg-linuxold64
-    dest: "{{ ansible_env.HOME }}/bin/borg"
+    dest: "{{ ansible_facts.env.HOME }}/bin/borg"
     mode: ugo+x
 
 - name: Install jq
   ansible.builtin.copy:
     src: files/jq
-    dest: "{{ ansible_env.HOME }}/bin/jq"
+    dest: "{{ ansible_facts.env.HOME }}/bin/jq"
     mode: ugo+x
 
 - name: Set .my.cnf
   template:
     src: templates/my.cnf.j2
-    dest: "{{ ansible_env.HOME }}/.my.cnf"
+    dest: "{{ ansible_facts.env.HOME }}/.my.cnf"
     # Necessary to write to Mayfirst home dir.
     unsafe_writes: true
 
 - name: Install borgbackup.sh
   template:
     src: templates/borgbackup.sh.j2
-    dest: "{{ ansible_env.HOME }}/bin/borgbackup.sh"
+    dest: "{{ ansible_facts.env.HOME }}/bin/borgbackup.sh"
     mode: ugo+x
 
 - name: Configure backup cron
@@ -38,16 +38,16 @@
     minute: "15"
     hour: "2"
     name: "Megaphonetech offsite backup"
-    job: "cd {{ ansible_env.HOME }}/bin && {{ ansible_env.HOME }}/bin/borgbackup.sh"
+    job: "cd {{ ansible_facts.env.HOME }}/bin && {{ ansible_facts.env.HOME }}/bin/borgbackup.sh"
 
 - name: Create the .ssh directory
   file:
-    path: "{{ ssh_key_location | default(ansible_env.HOME + '/.ssh', true) }}"
+    path: "{{ ssh_key_location | default(ansible_facts.env.HOME + '/.ssh', true) }}"
     state: directory
   become_user: "{{ run_as_user }}"
 
 - name: Create the log directory
   file:
-    path: "{{ nosudo_logs_path | default(ansible_env.HOME + '/log', true) }}"
+    path: "{{ nosudo_logs_path | default(ansible_facts.env.HOME + '/log', true) }}"
     state: directory
   become_user: "{{ run_as_user }}"
